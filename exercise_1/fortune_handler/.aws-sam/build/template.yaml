@@ -1,0 +1,367 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Deploy an AWS Lambda-backed API behind an Application Load Balancer
+Resources:
+  PubPrivateVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.31.0.0/16
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - _
+          - - Ref: AWS::StackName
+            - VPC
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: PubPrivateVPC
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs: ''
+      CidrBlock: 172.31.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - _
+          - - Ref: AWS::StackName
+            - Public1
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs: ''
+      VpcId:
+        Ref: PubPrivateVPC
+      CidrBlock: 172.31.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - _
+          - - Ref: AWS::StackName
+            - Public2
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: PubPrivateVPC
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs: ''
+      CidrBlock: 172.31.3.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - _
+          - - Ref: AWS::StackName
+            - Private1
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: PubPrivateVPC
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs: ''
+      CidrBlock: 172.31.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - _
+          - - Ref: AWS::StackName
+            - Private2
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - _
+          - - Ref: AWS::StackName
+            - IGW
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: PubPrivateVPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: PubPrivateVPC
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId:
+        Ref: InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet1
+      RouteTableId:
+        Ref: PublicRouteTable
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet2
+      RouteTableId:
+        Ref: PublicRouteTable
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: NatPublicIP
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - NatPublicIP
+        - AllocationId
+      SubnetId:
+        Ref: PublicSubnet1
+  NatPublicIP:
+    Type: AWS::EC2::EIP
+    DependsOn: PubPrivateVPC
+    Properties:
+      Domain: vpc
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: PubPrivateVPC
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId:
+        Ref: NatGateway
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet1
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet2
+      RouteTableId:
+        Ref: PrivateRouteTable
+  LoadBalancerSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Load balance allow port 80 traffic
+      VpcId:
+        Ref: PubPrivateVPC
+      SecurityGroupIngress:
+        CidrIp: '0.0.0.0/0'
+        FromPort: 80
+        IpProtocol: TCP
+        ToPort: 80
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      SecurityGroups:
+      - Ref: LoadBalancerSecGroup
+      Subnets:
+      - Ref: PublicSubnet1
+      - Ref: PublicSubnet2
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Protocol: HTTP
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LoadBalancerTargetGroup
+      Port: 80
+  LoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: lambda
+      Targets:
+      - AvailabilityZone: all
+        Id:
+          Fn::GetAtt:
+          - LambdaFunction
+          - Arn
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: apilambda
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*
+  LambdaFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+        - LambdaFunction
+        - Arn
+      Action: lambda:InvokeFunction
+      Principal: elasticloadbalancing.amazonaws.com
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: LambdaFunction
+      Handler: app.lambda_handler
+      Description: AWS Lambda function
+      FunctionName: LambdaFunction
+      MemorySize: 256
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 60
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+        - ''
+        - - /aws/lambda/
+          - Ref: LambdaFunction
+  MetricFilterMaxMemoryUsed:
+    Type: AWS::Logs::MetricFilter
+    DependsOn: LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+        - ''
+        - - /aws/lambda/
+          - Ref: LambdaFunction
+      FilterPattern: '[..., maxMemoryLabel="Used:", maxMemory, maxMemoryUnit=MB]'
+      MetricTransformations:
+      - MetricValue: $maxMemory
+        MetricNamespace:
+          Ref: LambdaFunction
+        MetricName: MaxMemoryUsedMB
+  MetricFilterMemorySize:
+    Type: AWS::Logs::MetricFilter
+    DependsOn: LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+        - ''
+        - - /aws/lambda/
+          - Ref: LambdaFunction
+      FilterPattern: '[..., sizeLabel="Size:", sizeMemory, sizeMemoryUnit=MB, maxLabel,
+        memoryLabel, maxMemoryLabel="Used:", maxMemory, maxMemoryUnit=MB]'
+      MetricTransformations:
+      - MetricValue: $sizeMemory
+        MetricNamespace:
+          Ref: LambdaFunction
+        MetricName: MemorySizeMB
+  DurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: LambdaFunction
+    Properties:
+      AlarmName: CodeBuddyDurationAlarm
+      AlarmDescription: Trigger an alarm if the duration is over 500ms
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: LambdaFunction
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 500
+      ComparisonOperator: GreaterThanThreshold
+  ErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: LambdaFunction
+    Properties:
+      AlarmName: CodeBuddyErrorsAlarm
+      AlarmDescription: Trigger an alarm if an error is recorded
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: LambdaFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+  InvocationsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: LambdaFunction
+    Properties:
+      AlarmName: CodeBuddyInvocationsAlarm
+      AlarmDescription: Trigger an alarm if the function is not invoked at least one
+        per day
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: LambdaFunction
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+  ThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: LambdaFunction
+    Properties:
+      AlarmName: CodeBuddyThrottlesAlarm
+      AlarmDescription: Trigger an alarm if a throttle is recorded
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: LambdaFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold

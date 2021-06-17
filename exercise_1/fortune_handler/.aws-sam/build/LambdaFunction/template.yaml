@@ -233,7 +233,7 @@ Resources:
     Type: "AWS::CloudWatch::Alarm"
     DependsOn: LambdaFunction
     Properties:
-      AlarmName: "DurationAlarm"
+      AlarmName: "CodeBuddyDurationAlarm"
       AlarmDescription: "Trigger an alarm if the duration is over 500ms"
       MetricName: "Duration"
       Namespace: "AWS/Lambda"
@@ -250,7 +250,7 @@ Resources:
     Type: "AWS::CloudWatch::Alarm"
     DependsOn: LambdaFunction
     Properties:
-      AlarmName: "ErrorsAlarm"
+      AlarmName: "CodeBuddyErrorsAlarm"
       AlarmDescription: "Trigger an alarm if an error is recorded"
       MetricName: "Errors"
       Namespace: "AWS/Lambda"
@@ -267,7 +267,7 @@ Resources:
     Type: "AWS::CloudWatch::Alarm"
     DependsOn: LambdaFunction
     Properties:
-      AlarmName: "InvocationsAlarm"
+      AlarmName: "CodeBuddyInvocationsAlarm"
       AlarmDescription: "Trigger an alarm if the function is not invoked at least one per day"
       MetricName: "Invocations"
       Namespace: "AWS/Lambda"
@@ -284,7 +284,7 @@ Resources:
     Type: "AWS::CloudWatch::Alarm"
     DependsOn: LambdaFunction
     Properties:
-      AlarmName: "ThrottlesAlarm"
+      AlarmName: "CodeBuddyThrottlesAlarm"
       AlarmDescription: "Trigger an alarm if a throttle is recorded"
       MetricName: "Throttles"
       Namespace: "AWS/Lambda"
