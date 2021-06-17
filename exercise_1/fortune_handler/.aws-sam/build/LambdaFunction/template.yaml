@@ -153,37 +153,6 @@ Resources:
           TargetGroupArn: !Ref ASGTargetGroup
       Port: 80
 
-  LambdaListenerRule:
-    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
-    Properties:
-      Actions:
-        - Type: forward
-          ForwardConfig:
-            TargetGroups:
-              - TargetGroupArn: !Ref LambdaTargetGroup
-      Conditions:
-        - Field: path-pattern
-          Values:
-            - '/fortune'
-      ListenerArn: !Ref LoadBalancerListener
-      Priority: 2
-
-  LambdaFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt LambdaFunction.Arn
-      Action: 'lambda:InvokeFunction'
-      Principal: elasticloadbalancing.amazonaws.com
-
-  LambdaTargetGroup:
-    DependsOn: LambdaFunction
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      TargetType: lambda
-      Targets:
-        - AvailabilityZone: all
-          Id: !GetAtt LambdaFunction.Arn
-
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -218,6 +187,39 @@ Resources:
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
       Timeout: 60
+
+  LambdaFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: elasticloadbalancing.amazonaws.com
+
+  LambdaListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref LambdaTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '/fortune'
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 2
+
+  LambdaTargetGroup:
+    DependsOn:
+      - LambdaFunction
+      - LambdaFunctionPermission
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: lambda
+      Targets:
+        - AvailabilityZone: all
+          Id: !GetAtt LambdaFunction.Arn
 
   LogGroup:
     Type: "AWS::Logs::LogGroup"
@@ -360,15 +362,13 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/bin/bash
-            # Install dependecies
-            sudo yum update -y
-            sudo yum -y install httpd
-            # Clone repository
-            git clone https://github.com/padili513/cloud_exercise.git
-            sudo mv cloud_exercise/exercise_2/frontend/index.html /var/www/html/
-            # Start apache
-            sudo service httpd start
+            yum update -y
+            yum -y install httpd
+            service httpd start
             chkconfig httpd on
+            yum -y install git
+            git clone https://github.com/padili513/cloud_exercise.git
+            mv cloud_exercise/exercise_2/frontend/index.html /var/www/html/
   WebServerScaleUpPolicy:
     Type: 'AWS::AutoScaling::ScalingPolicy'
     Properties:
