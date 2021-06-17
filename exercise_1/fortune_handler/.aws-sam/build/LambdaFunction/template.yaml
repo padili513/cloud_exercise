@@ -334,37 +334,12 @@ Resources:
         MaxBatchSize: '1'
         PauseTime: PT15M
         WaitOnResourceSignals: 'true'
-  EC2Role:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM'
-      RoleName: EC2-SSM-SSH
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Path: /
-  EC2InstanceProfile:
-    Type: 'AWS::IAM::InstanceProfile'
-    Properties:
-      Path: /
-      Roles:
-        - !Ref EC2Role
   LaunchConfig:
     Type: 'AWS::AutoScaling::LaunchConfiguration'
-    DependsOn:
-      - EC2InstanceProfile
     Properties:
       ImageId: ami-0aeeebd8d2ab47354
       InstanceType: t2.micro
-      IamInstanceProfile: !Ref EC2InstanceProfile
-      SecurityGroupIds:
+      SecurityGroups:
         - !Ref WebSecurityGroup
       UserData:
         Fn::Base64:
