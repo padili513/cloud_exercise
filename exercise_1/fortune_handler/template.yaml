@@ -320,7 +320,6 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
       LaunchConfigurationName: !Ref LaunchConfig
-      HealthCheckType: ELB
       HealthCheckGracePeriod: 300
       MinSize: '1'
       MaxSize: '2'
@@ -372,6 +371,7 @@ Resources:
             #!/bin/bash
             # Install dependecies
             sudo yum update -y
+            sudo yum install httpd
             # Clone repository
             git clone https://github.com/padili513/cloud_exercise.git
             sudo mv cloud_exercise/exercise_2/frontend/* /var/www/html/

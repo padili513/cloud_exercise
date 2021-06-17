@@ -389,6 +389,8 @@ Resources:
       - Ref: PrivateSubnet2
       LaunchConfigurationName:
         Ref: LaunchConfig
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
       MinSize: '1'
       MaxSize: '2'
       TargetGroupARNs:
@@ -403,11 +405,39 @@ Resources:
         MaxBatchSize: '1'
         PauseTime: PT15M
         WaitOnResourceSignals: 'true'
+  WebServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - Ref: DescribeHealthRole
+  DescribeHealthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: describe-instance-health-policy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - elasticloadbalancing:DescribeInstanceHealth
+            Resource: '*'
   LaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: ami-0aeeebd8d2ab47354
       InstanceType: t2.micro
+      IamInstanceProfile:
+        Ref: WebServerInstanceProfile
       SecurityGroups:
       - Ref: WebSecurityGroup
       UserData:
