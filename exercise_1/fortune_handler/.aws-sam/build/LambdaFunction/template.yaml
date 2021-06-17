@@ -168,7 +168,15 @@ Resources:
       ListenerArn: !Ref LoadBalancerListener
       Priority: 2
 
+  LambdaFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: elasticloadbalancing.amazonaws.com
+
   LambdaTargetGroup:
+    DependsOn: LambdaFunction
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       TargetType: lambda
@@ -198,13 +206,6 @@ Resources:
             Action:
             - logs:*
             Resource: "arn:aws:logs:*"
-
-  LambdaFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt LambdaFunction.Arn
-      Action: 'lambda:InvokeFunction'
-      Principal: elasticloadbalancing.amazonaws.com
       
   LambdaFunction:
     Type: AWS::Serverless::Function
@@ -320,22 +321,11 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
       LaunchConfigurationName: !Ref LaunchConfig
-      HealthCheckType: ELB
       HealthCheckGracePeriod: 300
       MinSize: '1'
       MaxSize: '2'
       TargetGroupARNs:
         - !Ref ASGTargetGroup
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT15M
-        Count: '1'
-    UpdatePolicy:
-      AutoScalingRollingUpdate:
-        MinInstancesInService: '1'
-        MaxBatchSize: '1'
-        PauseTime: PT15M
-        WaitOnResourceSignals: 'true'
   WebServerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -372,9 +362,10 @@ Resources:
             #!/bin/bash
             # Install dependecies
             sudo yum update -y
+            sudo yum -y install httpd
             # Clone repository
             git clone https://github.com/padili513/cloud_exercise.git
-            sudo mv cloud_exercise/exercise_2/frontend/* /var/www/html/
+            sudo mv cloud_exercise/exercise_2/frontend/index.html /var/www/html/
             # Start apache
             sudo service httpd start
             chkconfig httpd on
@@ -427,9 +418,11 @@ Resources:
   ASGTargetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 3
+      HealthCheckIntervalSeconds: 60
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      HealthCheckPath: /index.html
+      HealthCheckPort: 80
       Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
