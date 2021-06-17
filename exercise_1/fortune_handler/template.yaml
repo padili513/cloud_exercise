@@ -154,19 +154,19 @@ Resources:
       Port: 80
 
   LambdaListenerRule:
-  Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
-  Properties:
-    Actions:
-      - Type: forward
-        ForwardConfig:
-          TargetGroups:
-            - TargetGroupArn: !Ref LambdaTargetGroup
-    Conditions:
-      - Field: path-pattern
-        Values:
-          - '/fortune'
-    ListenerArn: !Ref LoadBalancerListener
-    Priority: 2
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref LambdaTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '/fortune'
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 2
 
   LambdaTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
