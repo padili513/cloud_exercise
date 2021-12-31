@@ -4,7 +4,8 @@
 [function_build_definitions.f735c670-7bb2-4cc1-a2a1-3f52043100c5]
 codeuri = "/Users/pedramadili/Documents/fortune_teller/fortune_handler"
 runtime = "python3.7"
-source_md5 = ""
+architecture = "x86_64"
+manifest_hash = ""
 packagetype = "Zip"
 functions = ["LambdaFunction"]
 

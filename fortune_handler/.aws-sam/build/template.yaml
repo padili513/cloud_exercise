@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Deploy an AWS Lambda-backed API behind an Application Load Balancer
+Description: Deploy an AWS Lambda-backed API behind an Application Load Balancer and
+  deploy the provided web site on an EC2-based web server
 Resources:
   PubPrivateVPC:
     Type: AWS::EC2::VPC
@@ -447,7 +448,7 @@ Resources:
             yum -y install git
 
             git clone https://github.com/padili513/fortune_teller.git
-            
+
             mv fortune_teller/frontend/index.html /var/www/html/
 
             '
