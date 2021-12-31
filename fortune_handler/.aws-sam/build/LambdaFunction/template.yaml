@@ -367,8 +367,8 @@ Resources:
             service httpd start
             chkconfig httpd on
             yum -y install git
-            git clone https://github.com/padili513/cloud_exercise.git
-            mv cloud_exercise/exercise_2/frontend/index.html /var/www/html/
+            git clone https://github.com/padili513/fortune_teller.git
+            mv fortune_teller/frontend/index.html /var/www/html/
   WebServerScaleUpPolicy:
     Type: 'AWS::AutoScaling::ScalingPolicy'
     Properties:
